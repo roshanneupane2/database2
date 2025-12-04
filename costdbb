@@ -1,0 +1,121 @@
+DROP DATABASE IF EXISTS example_db;
+CREATE DATABASE example_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE example_db;
+
+DROP TABLE IF EXISTS orders;
+DROP TABLE IF EXISTS customers;
+
+CREATE TABLE customers (
+    customer_id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(100) NOT NULL,
+    email VARCHAR(150) UNIQUE,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB;
+
+CREATE TABLE orders (
+    order_id INT AUTO_INCREMENT PRIMARY KEY,
+    customer_id INT NOT NULL,
+    amount DECIMAL(10,2) NOT NULL,
+    status ENUM('pending','paid','cancelled') NOT NULL DEFAULT 'pending',
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_orders_customer FOREIGN KEY (customer_id) REFERENCES customers(customer_id) 
+      ON DELETE RESTRICT ON UPDATE CASCADE
+) ENGINE=InnoDB;
+
+DROP VIEW IF EXISTS vw_customer_orders;
+CREATE VIEW vw_customer_orders AS
+SELECT c.customer_id, c.name, c.email,
+       o.order_id, o.amount, o.status, o.created_at AS order_created_at
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id;
+
+DROP VIEW IF EXISTS vw_customer_order_summary;
+CREATE VIEW vw_customer_order_summary AS
+SELECT c.customer_id, c.name, COUNT(o.order_id) AS total_orders, COALESCE(SUM(o.amount),0) AS total_amount
+FROM customers c
+LEFT JOIN orders o ON c.customer_id = o.customer_id
+GROUP BY c.customer_id, c.name;
+
+INSERT INTO customers (name, email) VALUES
+  ('Alice', 'alice@example.com'),
+  ('Bob', 'bob@example.com');
+
+INSERT INTO orders (customer_id, amount, status) VALUES
+  (1, 100.00, 'paid'),
+  (1, 45.50, 'pending'),
+  (2, 200.00, 'paid');
+
+SELECT * FROM vw_customer_orders;
+SELECT * FROM vw_customer_order_summary;
+
+START TRANSACTION;
+  INSERT INTO customers (name, email) VALUES ('Charlie','charlie@example.com');
+  SET @cid = LAST_INSERT_ID();
+  INSERT INTO orders (customer_id, amount, status) VALUES (@cid, 10.00, 'pending');
+  INSERT INTO orders (customer_id, amount, status) VALUES (@cid, 20.00, 'pending');
+COMMIT;
+
+SELECT * FROM customers WHERE name='Charlie';
+SELECT * FROM orders WHERE customer_id = @cid;
+
+START TRANSACTION;
+ROLLBACK;
+
+START TRANSACTION;
+  INSERT INTO customers (name, email) VALUES ('Eve','eve@example.com');
+  SET @eve_id = LAST_INSERT_ID();
+  SAVEPOINT sp_after_eve;
+    INSERT INTO orders (customer_id, amount, status) VALUES (@eve_id, 9999.99, 'pending');
+    ROLLBACK TO SAVEPOINT sp_after_eve;
+COMMIT;
+
+SELECT * FROM customers WHERE name='Eve';
+SELECT * FROM orders WHERE customer_id = @eve_id;
+
+DELIMITER //
+DROP PROCEDURE IF EXISTS sp_create_customer_with_orders;
+//
+CREATE PROCEDURE sp_create_customer_with_orders(
+    IN p_name VARCHAR(100),
+    IN p_email VARCHAR(150),
+    IN p_order1_amount DECIMAL(10,2),
+    IN p_order2_amount DECIMAL(10,2)
+)
+BEGIN
+    DECLARE EXIT HANDLER FOR SQLEXCEPTION
+    BEGIN
+        ROLLBACK;
+    END;
+
+    START TRANSACTION;
+        INSERT INTO customers (name, email) VALUES (p_name, p_email);
+        SET @new_cid = LAST_INSERT_ID();
+        INSERT INTO orders (customer_id, amount, status) VALUES (@new_cid, p_order1_amount, 'pending');
+        INSERT INTO orders (customer_id, amount, status) VALUES (@new_cid, p_order2_amount, 'pending');
+    COMMIT;
+END;
+//
+DELIMITER ;
+
+CALL sp_create_customer_with_orders('Frank', 'frank@example.com', 12.34, 56.78);
+SELECT * FROM customers WHERE name='Frank';
+SELECT * FROM orders WHERE customer_id = (SELECT customer_id FROM customers WHERE name='Frank' LIMIT 1);
+
+SELECT * FROM customers WHERE name IN ('Alice','Bob');
+
+START TRANSACTION;
+  UPDATE customers SET email = CONCAT('updated+', email) WHERE name = 'Alice';
+ROLLBACK;
+
+SELECT * FROM customers WHERE name = 'Alice';
+
+INSERT INTO customers (name, email) VALUES ('TempUser','temp@example.com');
+SET @temp_id = LAST_INSERT_ID();
+
+START TRANSACTION;
+  DELETE FROM customers WHERE customer_id = @temp_id;
+ROLLBACK;
+
+SELECT * FROM customers WHERE customer_id = @temp_id;
+
+SELECT * FROM vw_customer_order_summary ORDER BY total_amount DESC LIMIT 5;
