@@ -1,0 +1,113 @@
+-- ================================================
+-- ATTENDANCE MANAGEMENT SYSTEM (FULL SQL IN ONE)
+-- ================================================
+
+CREATE DATABASE attendance_system;
+USE attendance_system;
+
+-- --------------------
+-- ROLES
+-- --------------------
+CREATE TABLE roles (
+    role_id INT AUTO_INCREMENT PRIMARY KEY,
+    role_name VARCHAR(50) NOT NULL UNIQUE
+);
+
+INSERT INTO roles(role_name)
+VALUES ('Admin'), ('Employee');
+
+-- --------------------
+-- DEPARTMENTS
+-- --------------------
+CREATE TABLE departments (
+    dept_id INT AUTO_INCREMENT PRIMARY KEY,
+    dept_name VARCHAR(100) NOT NULL UNIQUE
+);
+
+INSERT INTO departments(dept_name)
+VALUES ('IT'), ('HR');
+
+-- --------------------
+-- USERS
+-- --------------------
+CREATE TABLE users (
+    user_id INT AUTO_INCREMENT PRIMARY KEY,
+    full_name VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    phone VARCHAR(20),
+    role_id INT,
+    dept_id INT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (role_id) REFERENCES roles(role_id),
+    FOREIGN KEY (dept_id) REFERENCES departments(dept_id)
+);
+
+INSERT INTO users(full_name, email, phone, role_id, dept_id)
+VALUES
+('Roshan', 'roshan@example.com', '9811...', 1, 1),
+('Lalit', 'lalit@example.com', '9822...', 2, 1),
+('Dipendra', 'dipendra@example.com', '9833...', 2, 2),
+('Narendra', 'narendra@example.com', '9844...', 2, 1);
+
+-- --------------------
+-- ATTENDANCE
+-- --------------------
+CREATE TABLE attendance (
+    att_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    date DATE NOT NULL,
+    check_in TIME,
+    check_out TIME,
+    status ENUM('Present','Absent','Late','Half Day') DEFAULT 'Present',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+INSERT INTO attendance(user_id, date, check_in, check_out, status)
+VALUES
+(1, '2025-01-01', '09:00:00', '17:00:00', 'Present'),
+(2, '2025-01-01', '09:20:00', '17:00:00', 'Late'),
+(3, '2025-01-01', NULL, NULL, 'Absent');
+
+-- --------------------
+-- LEAVES
+-- --------------------
+CREATE TABLE leaves (
+    leave_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT NOT NULL,
+    leave_type ENUM('Sick','Casual','Annual') NOT NULL,
+    start_date DATE NOT NULL,
+    end_date DATE NOT NULL,
+    reason TEXT,
+    status ENUM('Pending','Approved','Rejected') DEFAULT 'Pending',
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+-- --------------------
+-- HOLIDAYS
+-- --------------------
+CREATE TABLE holidays (
+    holiday_id INT AUTO_INCREMENT PRIMARY KEY,
+    holiday_name VARCHAR(100) NOT NULL,
+    holiday_date DATE NOT NULL UNIQUE
+);
+
+INSERT INTO holidays(holiday_name, holiday_date)
+VALUES ('New Year', '2025-01-01');
+
+-- --------------------
+-- AUDIT LOGS
+-- --------------------
+CREATE TABLE audit_logs (
+    log_id INT AUTO_INCREMENT PRIMARY KEY,
+    user_id INT,
+    action VARCHAR(255) NOT NULL,
+    timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(user_id)
+);
+
+INSERT INTO audit_logs(user_id, action)
+VALUES (1, 'Checked In');
+
+-- ================================================
+-- DONE! 🎉
+-- ================================================
