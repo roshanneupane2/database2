@@ -54,3 +54,18 @@ CREATE TABLE users (
     linked_id INT,   -- teacher_id or student_id
     FOREIGN KEY (linked_id) REFERENCES students(student_id)
 );
+
+
+
+-- queries to implement 
+-- INSERT INTO teachers (full_name, email)
+-- VALUES ('Roshan Neupane', 'roshan@example.com');
+
+-- INSERT INTO courses (course_name, teacher_id)
+-- VALUES ('Web Technology', 1);
+
+-- INSERT INTO students (full_name, email, class, roll_no)
+-- VALUES ('Dipendra Dhami', 'dipendra@example.com', 'BECE VIII', 15);
+
+-- INSERT INTO attendance (student_id, course_id, date, status)
+-- VALUES (1, 1, '2025-01-01', 'Present');
